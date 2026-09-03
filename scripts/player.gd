@@ -3,23 +3,18 @@ extends CharacterBody3D
 
 const SPEED := 4.5
 const MOUSE_SENSITIVITY := 0.0025
-
+const RAY_DISTANCE := 3.5
 var peer_id: int
 var is_local := false
 var look_pitch := 0.0
 var camera: Camera3D
+var current_target := ""
 
 func configure(id: int, local_player: bool) -> void:
 	peer_id = id
 	is_local = local_player
 	name = "Player_%d" % id
 	set_multiplayer_authority(id)
-	_build_body()
-	if is_local:
-		camera.current = true
-		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
-
-func _build_body() -> void:
 	var collision := CollisionShape3D.new()
 	var shape := CapsuleShape3D.new()
 	shape.radius = 0.35
@@ -27,22 +22,23 @@ func _build_body() -> void:
 	collision.shape = shape
 	collision.position.y = 0.9
 	add_child(collision)
-
-	var mesh_instance := MeshInstance3D.new()
-	var capsule := CapsuleMesh.new()
-	capsule.radius = 0.35
-	capsule.height = 1.8
-	mesh_instance.mesh = capsule
-	mesh_instance.position.y = 0.9
+	var visual := MeshInstance3D.new()
+	var mesh := CapsuleMesh.new()
+	mesh.radius = 0.35
+	mesh.height = 1.8
+	visual.mesh = mesh
+	visual.position.y = 0.9
 	var material := StandardMaterial3D.new()
-	material.albedo_color = Color.from_hsv(fmod(float(peer_id) * 0.19, 1.0), 0.55, 0.8)
-	mesh_instance.material_override = material
-	add_child(mesh_instance)
-
+	material.albedo_color = Color.from_hsv(fmod(float(id) * 0.19, 1.0), 0.55, 0.8)
+	visual.material_override = material
+	add_child(visual)
 	camera = Camera3D.new()
 	camera.position = Vector3(0.0, 1.55, 0.0)
 	camera.fov = 75.0
 	add_child(camera)
+	if is_local:
+		camera.current = true
+		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 
 func _unhandled_input(event: InputEvent) -> void:
 	if not is_local:
@@ -67,10 +63,23 @@ func _physics_process(delta: float) -> void:
 	velocity.z = direction.z * SPEED
 	move_and_slide()
 	_sync_transform.rpc(global_position, rotation.y)
-	if Input.is_action_just_pressed("interact"):
-		get_parent().request_door_interaction(peer_id, global_position)
+	_update_target()
+	if Input.is_action_just_pressed("interact") and not current_target.is_empty():
+		get_parent().request_interaction(peer_id, current_target)
 	if Input.is_action_just_pressed("verify"):
-		get_parent().request_verification(peer_id, global_position)
+		get_parent().request_verification(peer_id)
+
+func _update_target() -> void:
+	var from := camera.global_position
+	var query := PhysicsRayQueryParameters3D.create(from, from - camera.global_transform.basis.z * RAY_DISTANCE)
+	query.exclude = [get_rid()]
+	var hit := get_world_3d().direct_space_state.intersect_ray(query)
+	current_target = ""
+	if not hit.is_empty():
+		var collider: Object = hit.get("collider")
+		if collider != null and collider.has_meta("interaction_id"):
+			current_target = str(collider.get_meta("interaction_id"))
+	get_parent().update_interaction_prompt(current_target, get_parent().container_carrier == peer_id)
 
 @rpc("any_peer", "call_remote", "unreliable", 1)
 func _sync_transform(remote_position: Vector3, remote_yaw: float) -> void:

@@ -4,7 +4,7 @@
 
 Last updated: **2026-09-03**
 
-The repository now contains **Prototype 01**, a minimal networked vertical slice built for Godot 4.x.
+The repository now contains **Prototype 02**, a short networked shift built for Godot 4.x.
 
 Implemented:
 
@@ -13,20 +13,27 @@ Implemented:
 - support for up to four connections, with the current playtest designed for two players;
 - first-person movement and mouse look with host-relayed transform synchronization;
 - a shared server-authoritative physical door;
-- player-specific perception: the host sees a door and a safe work order, while connected clients see a wall and a containment warning;
+- player-specific perception: the host sees a door and receives destination A-17, while connected clients see a wall and receive destination B-04;
 - server-authoritative door interaction with range validation;
-- one shared verification charge that reveals the authoritative physical state to all players;
-- an on-screen event log showing perception claims separately from authoritative facts.
+- one shared verification charge that reveals the container's authoritative `BLUE / B-04` label to all players;
+- an on-screen event log showing perception claims separately from authoritative facts;
 - a stable direct reference to the runtime HUD, avoiding dependency on auto-generated node names;
 - Russian and English localization for the lobby, HUD, work orders, scanner feedback, and event log;
 - a lobby language selector, with Russian as the default and the choice persisted in `user://settings.cfg`;
+- camera-ray interaction prompts instead of distance-only button handling;
+- a blue artifact container that one player can carry at a time, synchronized by the host;
+- two containment bays, `A-17 / AMBER` and `B-04 / BLUE`;
+- conflicting player-specific delivery orders: the host is told to use A-17 while connected players are told to use B-04;
+- one shared scanner charge that establishes the reliable physical label `BLUE / B-04`;
+- authoritative task resolution when the carrier deposits the container;
+- an incorrect placement consequence that changes facility lighting to emergency red;
+- an extraction elevator that becomes available after the containment decision;
+- localized success/breach end-of-shift summaries.
 
 Not yet implemented:
 
-- a complete task with success/failure resolution;
-- artifact transport and containment;
-- anomaly escalation;
-- round timer, elevator extraction, or end-of-shift summary;
+- a round timer;
+- multi-stage anomaly escalation beyond the first power-loss consequence;
 - audio divergence;
 - production-ready replication, prediction, or reconnect handling;
 - polished environment art and sound.
@@ -35,8 +42,8 @@ Current controls:
 
 - `WASD`: move;
 - mouse: look;
-- `E`: operate Door 12 when nearby;
-- `V`: spend the shared verification charge when near Door 12;
+- `E`: interact with the object under the crosshair;
+- `V`: spend the shared scanner charge while near the artifact container;
 - `Esc`: release the mouse.
 
 Current test procedure:
@@ -46,10 +53,12 @@ Current test procedure:
 3. Run the project and move the overlapping windows apart.
 4. Select **HOST SHIFT** in the first instance.
 5. Select **JOIN SHIFT** in the second instance using `127.0.0.1` on the same machine.
-6. Compare the work orders and the appearance of Door 12.
-7. Discuss which instruction to trust.
-8. Approach Door 12 and press `V` in one instance to spend the single shared verification charge.
-9. Use `E` near the door and confirm that its physical state changes for both players.
+6. Compare the conflicting destination orders and the appearance of Door 12.
+7. Look at the blue container and press `E` to carry it.
+8. Decide whether to trust A-17, B-04, or spend the one scanner charge with `V` near the container.
+9. While carrying the container, aim at a containment bay and press `E`.
+10. Observe the stable result for B-04 or emergency power loss for A-17.
+11. Return to the elevator at the beginning of the corridor, aim at its panel, and press `E`.
 
 Known limitation: the prototype deliberately uses lightweight client-owned movement synchronization. Important interactions and door state remain server-authoritative. Movement authority should be hardened after the core interaction is validated.
 

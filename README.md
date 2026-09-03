@@ -1,4 +1,4 @@
-# SHIFT 51 — Prototype 01
+# SHIFT 51 — Prototype 02
 
 A minimal Godot 4 multiplayer prototype for testing conflicting player perceptions.
 
@@ -30,12 +30,21 @@ The prototype listens on UDP port `5151`. Remote players need the host's reachab
 
 - `WASD`: movement
 - Mouse: camera
-- `E`: operate Door 12 when nearby
-- `V`: spend the shared verification charge near Door 12
+- `E`: interact with the object under the crosshair
+- `V`: spend the shared scanner charge while close to the container
 - `Esc`: release mouse cursor
 
 ## Prototype question
 
 Does conflicting but believable information produce an interesting conversation when the team has one costly, reliable way to establish a shared fact?
 
-The on-screen log deliberately distinguishes local perception from authoritative state for playtest debugging.
+The playable loop is now:
+
+1. Compare the conflicting containment orders.
+2. Pick up the blue container by aiming at it and pressing `E`.
+3. Optionally spend the single shared scanner charge with `V` while close to the container.
+4. Carry it to either `A-17 / AMBER` or `B-04 / BLUE`.
+5. Aim at the bay and press `E` to commit the decision.
+6. Return to the elevator panel at the start of the corridor and press `E` to end the shift.
+
+Choosing the wrong bay does not immediately end the run. It causes an emergency power failure and produces a breach result after extraction. The on-screen log distinguishes local information from host-authoritative events for debugging.
