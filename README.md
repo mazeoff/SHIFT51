@@ -49,6 +49,8 @@ The playable loop is now:
 
 Choosing the wrong bay does not immediately end the run. It causes an emergency power failure and produces a breach result after extraction. The on-screen log distinguishes local information from host-authoritative events for debugging.
 
+Each new shift selects one of three data-driven artifact orders: `COBALT-7`, `AMBER-3`, or `[REDACTED] Archive`. Container color, verified scanner classification, and the authoritative destination change with the selected order. The server randomly decides whether the host or the connected-player role receives the correct instruction; the other side receives a believable conflicting destination. Restarting never repeats the immediately previous task when multiple definitions are available.
+
 ## Observer artifact
 
 The pale spherical artifact changes position after 2.5 seconds outside every player's forward view. Movement is selected by the host from four predefined points and replicated to all players. Connected non-host players also see a purple-tinted false copy that does not exist in the authoritative simulation.

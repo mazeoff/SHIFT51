@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="TaskDefinition" load_steps=2 format=3]
+
+[ext_resource path="res://scripts/tasks/task_definition.gd" type="Script" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = "amber_prism"
+artifact_name_key = "artifact_amber"
+correct_chamber = "chamber_a"
+container_color = Color(0.72, 0.36, 0.08, 1)
+scanner_result_key = "scan_amber"

@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="TaskDefinition" load_steps=2 format=3]
+
+[ext_resource path="res://scripts/tasks/task_definition.gd" type="Script" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = "redacted_archive"
+artifact_name_key = "artifact_redacted"
+correct_chamber = "chamber_b"
+container_color = Color(0.28, 0.13, 0.34, 1)
+scanner_result_key = "scan_redacted"

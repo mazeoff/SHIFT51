@@ -11,6 +11,11 @@ const ROUND_DURATION := 300.0
 const OBSERVER_BREACH_MOVES := 5
 const WALL_TEXTURE := preload("res://assets/textures/facility_wall_albedo.png")
 const PROP_ROOT := "res://assets/third_party/quaternius_sci_fi_essentials/"
+const TASKS: Array[TaskDefinition] = [
+	preload("res://resources/tasks/cobalt_vessel.tres"),
+	preload("res://resources/tasks/amber_prism.tres"),
+	preload("res://resources/tasks/redacted_archive.tres")
+]
 const OBSERVER_POINTS := [
 	Vector3(0.0, 0.8, -1.5),
 	Vector3(-2.1, 0.8, 2.0),
@@ -28,6 +33,8 @@ var containment_success := false
 var power_online := true
 var round_started := false
 var round_finished := false
+var active_task_index := 0
+var host_receives_true_order := false
 var observer_point_index := 0
 var observer_unseen_time := 0.0
 var observer_move_delay := 2.5
@@ -40,6 +47,7 @@ var door_mesh: MeshInstance3D
 var perception_overlay: MeshInstance3D
 var container_body: StaticBody3D
 var container_collision: CollisionShape3D
+var container_mesh: MeshInstance3D
 var lights: Array[OmniLight3D] = []
 var observer_visual: MeshInstance3D
 var false_observer_visual: MeshInstance3D
@@ -110,6 +118,7 @@ func _build_world() -> void:
 	door_mesh = door_body.get_node("Mesh")
 	container_body = _target("container", "Container", Vector3(.8, .8, .8), BOX_START, Color("307c9a"))
 	container_collision = container_body.get_node("Collision")
+	container_mesh = container_body.get_node("Mesh")
 	_target("chamber_a", "BayA", Vector3(2, .25, 2), BAY_A, Color("8c6136"))
 	_target("chamber_b", "BayB", Vector3(2, .25, 2), BAY_B, Color("285f78"))
 	_target("elevator", "Elevator", Vector3(1.2, 2.2, .25), Vector3(0, 1.2, 7.7), Color("51616a"))
@@ -426,7 +435,10 @@ func _refresh_language() -> void:
 	if not round_started:
 		status_label.text = Localization.text("start_hint")
 	elif task_resolved:
-		instruction_label.text = Localization.text("task_success" if containment_success else "task_failure")
+		var active_task: TaskDefinition = TASKS[active_task_index]
+		var resolved_chamber := active_task.correct_chamber if containment_success else _opposite_chamber(active_task.correct_chamber)
+		var resolved_bay := Localization.text("bay_a" if resolved_chamber == "chamber_a" else "bay_b")
+		instruction_label.text = Localization.text("task_success_dynamic" if containment_success else "task_failure_dynamic", [resolved_bay])
 		evidence_label.text = Localization.text("return_to_elevator")
 	else:
 		_apply_perception()
@@ -440,6 +452,7 @@ func _host() -> void:
 		status_label.text = Localization.text("host_error", [error_string(error)])
 		return
 	multiplayer.multiplayer_peer = peer
+	_choose_next_task()
 	round_started = true
 	_start_round()
 	spawn_player.rpc(1)
@@ -466,7 +479,7 @@ func _on_peer_connected(id: int) -> void:
 	if not multiplayer.is_server(): return
 	for existing_id in players.keys(): spawn_player.rpc_id(id, existing_id)
 	spawn_player.rpc(id)
-	_sync_state.rpc_id(id, door_open, verification_charges, container_carrier, container_position, task_resolved, containment_success, power_online, observer_point_index, observer_move_count, observer_breached, round_time_remaining)
+	_sync_state.rpc_id(id, door_open, verification_charges, container_carrier, container_position, task_resolved, containment_success, power_online, observer_point_index, observer_move_count, observer_breached, round_time_remaining, active_task_index, host_receives_true_order)
 	_log_key.rpc("log_entered", [id])
 
 func _on_peer_disconnected(id: int) -> void:
@@ -504,7 +517,7 @@ func _apply_player_transform(id: int, pos: Vector3, yaw: float) -> void:
 		players[id].rotation.y = yaw
 
 @rpc("authority", "call_remote", "reliable")
-func _sync_state(remote_door: bool, charges: int, carrier: int, pos: Vector3, resolved: bool, success: bool, online: bool, observer_index: int, moves: int, breached: bool, time_left: float) -> void:
+func _sync_state(remote_door: bool, charges: int, carrier: int, pos: Vector3, resolved: bool, success: bool, online: bool, observer_index: int, moves: int, breached: bool, time_left: float, task_index: int, host_has_truth: bool) -> void:
 	_apply_door(remote_door)
 	verification_charges = charges
 	task_resolved = resolved
@@ -514,29 +527,53 @@ func _sync_state(remote_door: bool, charges: int, carrier: int, pos: Vector3, re
 	observer_move_count = moves
 	observer_breached = breached
 	round_time_remaining = time_left
+	active_task_index = task_index
+	host_receives_true_order = host_has_truth
 	_set_container(pos, carrier)
+	_apply_task_visuals()
 	_apply_power()
 	observer_visual.global_position = OBSERVER_POINTS[observer_point_index]
 	_update_timer_label(round_time_remaining)
+	_apply_perception()
 
 func _apply_perception() -> void:
 	if not round_started or instruction_label == null: return
 	var local_id := multiplayer.get_unique_id()
+	var active_task: TaskDefinition = TASKS[active_task_index]
+	var local_has_truth := host_receives_true_order if local_id == 1 else not host_receives_true_order
+	var perceived_chamber := active_task.correct_chamber if local_has_truth else _opposite_chamber(active_task.correct_chamber)
+	var perceived_bay_key := "bay_a" if perceived_chamber == "chamber_a" else "bay_b"
+	instruction_label.text = Localization.text("order_dynamic", [Localization.text(active_task.artifact_name_key), Localization.text(perceived_bay_key)])
+	evidence_label.text = Localization.text("perception_route_a" if perceived_chamber == "chamber_a" else "perception_route_b")
 	if is_instance_valid(perception_overlay): perception_overlay.queue_free()
 	if is_instance_valid(false_observer_visual): false_observer_visual.queue_free()
 	if local_id == 1:
-		instruction_label.text = Localization.text("order_a")
-		evidence_label.text = Localization.text("perception_a")
 		door_mesh.visible = true
 	else:
-		instruction_label.text = Localization.text("order_b")
-		evidence_label.text = Localization.text("perception_b")
 		door_mesh.visible = false
 		# This wall is locally physical: it blocks both movement and the interaction
 		# ray, so a player who cannot perceive the door cannot operate or cross it.
 		perception_overlay = _box("LocalWall", Vector3(2, 2.5, .34), DOOR_POS, Color.WHITE, true)
 		_apply_wall_material(perception_overlay, Vector3(1, 1.5, 1))
 		false_observer_visual = _observer_mesh("FalseObserver", Vector3(-2.1, 0.8, 4.0), Color("b7a7ce"))
+
+func _opposite_chamber(chamber: String) -> String:
+	return "chamber_b" if chamber == "chamber_a" else "chamber_a"
+
+func _choose_next_task() -> void:
+	var previous_index := active_task_index
+	if TASKS.size() > 1:
+		while active_task_index == previous_index:
+			active_task_index = randi_range(0, TASKS.size() - 1)
+	host_receives_true_order = bool(randi() % 2)
+	_apply_task_visuals()
+
+func _apply_task_visuals() -> void:
+	if container_mesh == null:
+		return
+	var active_task: TaskDefinition = TASKS[active_task_index]
+	var material: StandardMaterial3D = container_mesh.material_override
+	material.albedo_color = active_task.container_color
 
 func _update_observer(delta: float) -> void:
 	if _observer_is_watched():
@@ -648,9 +685,10 @@ func _set_container(pos: Vector3, carrier: int) -> void:
 
 func _resolve_task(id: String, peer_id: int) -> void:
 	task_resolved = true
-	containment_success = id == "chamber_b"
+	var active_task: TaskDefinition = TASKS[active_task_index]
+	containment_success = id == active_task.correct_chamber
 	container_carrier = 0
-	container_position = (BAY_B if containment_success else BAY_A) + Vector3.UP * .55
+	container_position = (BAY_A if id == "chamber_a" else BAY_B) + Vector3.UP * .55
 	_set_container.rpc(container_position, 0)
 	if not containment_success:
 		power_online = false
@@ -661,7 +699,10 @@ func _resolve_task(id: String, peer_id: int) -> void:
 func _task_result(success: bool, peer_id: int) -> void:
 	task_resolved = true
 	containment_success = success
-	instruction_label.text = Localization.text("task_success" if success else "task_failure")
+	var active_task: TaskDefinition = TASKS[active_task_index]
+	var resolved_chamber := active_task.correct_chamber if success else _opposite_chamber(active_task.correct_chamber)
+	var resolved_bay := Localization.text("bay_a" if resolved_chamber == "chamber_a" else "bay_b")
+	instruction_label.text = Localization.text("task_success_dynamic" if success else "task_failure_dynamic", [resolved_bay])
 	evidence_label.text = Localization.text("return_to_elevator")
 	_log(Localization.text("log_task_result", [peer_id, Localization.text("success" if success else "failure")]))
 
@@ -718,7 +759,7 @@ func _server_verify(peer_id: int) -> void:
 @rpc("authority", "call_local", "reliable")
 func _reveal_evidence(peer_id: int) -> void:
 	verification_charges = 0
-	evidence_label.text = Localization.text("verified_container")
+	evidence_label.text = Localization.text(TASKS[active_task_index].scanner_result_key)
 	_log(Localization.text("log_verified", [peer_id]))
 
 @rpc("authority", "call_local", "reliable")
@@ -731,17 +772,23 @@ func _finish_round(success: bool, timed_out: bool) -> void:
 
 func _request_restart() -> void:
 	if multiplayer.is_server():
-		_reset_round.rpc()
+		_begin_new_round()
 	else:
 		_request_restart_on_server.rpc_id(1)
 
 @rpc("any_peer", "call_remote", "reliable")
 func _request_restart_on_server() -> void:
 	if multiplayer.is_server() and round_finished:
-		_reset_round.rpc()
+		_begin_new_round()
+
+func _begin_new_round() -> void:
+	_choose_next_task()
+	_reset_round.rpc(active_task_index, host_receives_true_order)
 
 @rpc("authority", "call_local", "reliable")
-func _reset_round() -> void:
+func _reset_round(task_index: int, host_has_truth: bool) -> void:
+	active_task_index = task_index
+	host_receives_true_order = host_has_truth
 	door_open = false
 	verification_charges = 1
 	container_carrier = 0
@@ -758,6 +805,7 @@ func _reset_round() -> void:
 	timer_sync_accumulator = 0.0
 	_apply_door(false)
 	_set_container(BOX_START, 0)
+	_apply_task_visuals()
 	observer_visual.global_position = OBSERVER_POINTS[0]
 	observer_visual.scale = Vector3.ONE
 	_apply_power()

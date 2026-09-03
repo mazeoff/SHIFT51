@@ -47,10 +47,15 @@ Implemented:
 - a project-specific generated tileable wall albedo at `assets/textures/facility_wall_albedo.png`;
 - five optimized CC0 Quaternius glTF props (crate, locker, shelf, desk, and chair) placed as non-interactive environment dressing;
 - a source and licensing register in `ASSET_SOURCES.md`, plus the original local CC0 license file;
+- data-driven task definitions stored as Godot `Resource` files under `resources/tasks/`;
+- three transport orders: `COBALT-7`, `AMBER-3`, and `[REDACTED] Archive`, each with its own container color, classification, scanner result, and authoritative destination;
+- host-side selection of a different task after each restart, with the truthful order randomly assigned between host and connected-player roles;
+- task identity, perceived-order assignment, container appearance, and correct resolution synchronized for late-joining clients;
 
 Not yet implemented:
 
 - multi-stage anomaly escalation beyond the first power-loss consequence;
+- task types beyond artifact transport, such as maintenance, verification sequences, and cooperative observation procedures;
 - audio divergence;
 - production-ready replication, prediction, or reconnect handling;
 - polished environment art and sound.
