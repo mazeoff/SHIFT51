@@ -7,6 +7,8 @@ const SUPPORTED_LOCALES := ["ru", "en"]
 const TEXT := {
 	"ru": {
 		"title": "SHIFT 51 — ПРОТОТИП 03", "language": "Язык", "server_address": "Адрес сервера",
+		"menu_subtitle": "ОТДЕЛ АНОМАЛЬНОГО СОДЕРЖАНИЯ · НОЧНАЯ СМЕНА",
+		"menu_footer": "ВНУТРЕННЯЯ СЕТЬ · ДОПУСК УРОВНЯ 03",
 		"host": "НАЧАТЬ СМЕНУ", "join": "ПОДКЛЮЧИТЬСЯ",
 		"start_hint": "Запустите две копии: в одной создайте смену, во второй подключитесь.",
 		"controls": "WASD — движение | Мышь — обзор | E — взаимодействие | V — сканер рядом с контейнером | Esc — мышь",
@@ -51,6 +53,8 @@ const TEXT := {
 	},
 	"en": {
 		"title": "SHIFT 51 — PROTOTYPE 03", "language": "Language", "server_address": "Server address",
+		"menu_subtitle": "ANOMALOUS CONTAINMENT DIVISION · NIGHT SHIFT",
+		"menu_footer": "INTERNAL NETWORK · CLEARANCE LEVEL 03",
 		"host": "HOST SHIFT", "join": "JOIN SHIFT", "start_hint": "Start two copies: host in one, join in another.",
 		"controls": "WASD — move | Mouse — look | E — interact | V — scan near container | Esc — release mouse",
 		"host_error": "Host error: %s", "join_error": "Join error: %s", "connecting": "Connecting…",

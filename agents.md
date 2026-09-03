@@ -41,6 +41,12 @@ Implemented:
 - a host-authoritative five-minute shift timer synchronized to clients four times per second;
 - automatic failed extraction when the timer expires;
 - a synchronized **Start New Shift** action that resets players, artifacts, containment state, lighting, verification charge, timer, and result UI without restarting the application.
+- a centered, resolution-independent start panel with a dimmed backdrop, facility accent line, departmental subtitle, clearance footer, and consistent button/input styling;
+- a shared code-generated UI theme used by the lobby, HUD prompts, log, and result panel;
+- a first environment art pass using only procedural primitives: ceiling ribs, floor joints, fluorescent panels, wall rails, metallic material response, atmospheric fog, and color-coded routes to containment bays;
+- a project-specific generated tileable wall albedo at `assets/textures/facility_wall_albedo.png`;
+- five optimized CC0 Quaternius glTF props (crate, locker, shelf, desk, and chair) placed as non-interactive environment dressing;
+- a source and licensing register in `ASSET_SOURCES.md`, plus the original local CC0 license file;
 
 Not yet implemented:
 
@@ -48,6 +54,7 @@ Not yet implemented:
 - audio divergence;
 - production-ready replication, prediction, or reconnect handling;
 - polished environment art and sound.
+- additional authored textures, decals, character models, typography, and final environment art.
 
 Current controls:
 

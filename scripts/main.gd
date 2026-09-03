@@ -9,6 +9,8 @@ const BAY_A := Vector3(-2.15, 0.2, -3.2)
 const BAY_B := Vector3(2.15, 0.2, -3.2)
 const ROUND_DURATION := 300.0
 const OBSERVER_BREACH_MOVES := 5
+const WALL_TEXTURE := preload("res://assets/textures/facility_wall_albedo.png")
+const PROP_ROOT := "res://assets/third_party/quaternius_sci_fi_essentials/"
 const OBSERVER_POINTS := [
 	Vector3(0.0, 0.8, -1.5),
 	Vector3(-2.1, 0.8, 2.0),
@@ -59,6 +61,9 @@ var join_button: Button
 var controls_label: Label
 var timer_label: Label
 var restart_button: Button
+var menu_backdrop: ColorRect
+var subtitle_label: Label
+var menu_footer_label: Label
 
 func _ready() -> void:
 	_build_world()
@@ -86,15 +91,19 @@ func _build_world() -> void:
 	env.background_color = Color("101518")
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
 	env.ambient_light_color = Color("8ca0a3")
-	env.ambient_light_energy = 0.55
+	env.ambient_light_energy = 0.38
+	env.fog_enabled = true
+	env.fog_light_color = Color("182328")
+	env.fog_light_energy = 0.55
+	env.fog_density = 0.018
 	world.environment = env
 	add_child(world)
 	_box("Floor", Vector3(6, .2, 18), Vector3(0, -.1, 0), Color("343b3d"), true)
 	_box("Ceiling", Vector3(6, .2, 18), Vector3(0, 3.1, 0), Color("24292b"), true)
-	_box("LeftWall", Vector3(.2, 3.2, 18), Vector3(-3, 1.5, 0), Color("596164"), true)
-	_box("RightWall", Vector3(.2, 3.2, 18), Vector3(3, 1.5, 0), Color("596164"), true)
-	_box("EndWall", Vector3(6, 3.2, .2), Vector3(0, 1.5, -9), Color("596164"), true)
-	_box("StartWall", Vector3(6, 3.2, .2), Vector3(0, 1.5, 9), Color("596164"), true)
+	_apply_wall_material(_box("LeftWall", Vector3(.2, 3.2, 18), Vector3(-3, 1.5, 0), Color.WHITE, true), Vector3(4, 2, 1))
+	_apply_wall_material(_box("RightWall", Vector3(.2, 3.2, 18), Vector3(3, 1.5, 0), Color.WHITE, true), Vector3(4, 2, 1))
+	_apply_wall_material(_box("EndWall", Vector3(6, 3.2, .2), Vector3(0, 1.5, -9), Color.WHITE, true), Vector3(2, 2, 1))
+	_apply_wall_material(_box("StartWall", Vector3(6, 3.2, .2), Vector3(0, 1.5, 9), Color.WHITE, true), Vector3(2, 2, 1))
 	_box("DoorFrameL", Vector3(2, 3.2, .35), Vector3(-2, 1.5, -6), Color("263033"), true)
 	_box("DoorFrameR", Vector3(2, 3.2, .35), Vector3(2, 1.5, -6), Color("263033"), true)
 	door_body = _target("door", "Door", Vector3(2, 2.5, .3), DOOR_POS, Color("8b5b37"))
@@ -108,6 +117,8 @@ func _build_world() -> void:
 	_world_label("B-04 / BLUE", BAY_B + Vector3(0, 1.3, 0), Color("5eb5dd"))
 	_world_label("SHIFT EXIT", Vector3(0, 2.6, 7.5), Color("b9d6c8"))
 	observer_visual = _observer_mesh("Observer", OBSERVER_POINTS[0], Color("d7d1bb"))
+	_add_environment_details()
+	_add_external_props()
 	for z in [-6.5, -3.0, 1.0, 5.0]:
 		var light := OmniLight3D.new()
 		light.position = Vector3(0, 2.7, z)
@@ -116,6 +127,60 @@ func _build_world() -> void:
 		light.light_energy = 1.8
 		lights.append(light)
 		add_child(light)
+
+func _add_environment_details() -> void:
+	# Chunky structural ribs and restrained navigation colors create the
+	# late-1990s industrial facility language without external assets.
+	for z in [-7.5, -5.0, -2.5, 0.0, 2.5, 5.0, 7.5]:
+		_box("CeilingRib", Vector3(5.8, 0.16, 0.18), Vector3(0, 2.92, z), Color("151b1e"), false)
+		_box("FloorJoint", Vector3(5.7, 0.025, 0.06), Vector3(0, 0.015, z), Color("171d20"), false)
+	for z in [-5.0, 0.0, 5.0]:
+		_decor_box(Vector3(1.35, 0.035, 0.32), Vector3(0, 2.985, z), Color("b9d7cf"), true)
+	for side in [-1.0, 1.0]:
+		_box("WallRail", Vector3(0.11, 0.18, 16.5), Vector3(2.84 * side, 0.78, 0), Color("202a2e"), false)
+	# The colored approach lines make the two containment choices readable.
+	_decor_box(Vector3(0.12, 0.025, 3.4), Vector3(-1.45, 0.02, -1.8), Color("bd7a36"), true)
+	_decor_box(Vector3(0.12, 0.025, 3.4), Vector3(1.45, 0.02, -1.8), Color("3594b7"), true)
+	for x in [-2.75, 2.75]:
+		for z in [-6.8, -1.0, 4.8]:
+			_decor_box(Vector3(0.055, 0.65, 1.3), Vector3(x, 1.35, z), Color("405056"), false)
+
+func _decor_box(size: Vector3, pos: Vector3, color: Color, emissive: bool) -> void:
+	var visual := _box("FacilityDetail", size, pos, color, false)
+	var material: StandardMaterial3D = visual.material_override
+	material.roughness = 0.72
+	material.metallic = 0.18
+	if emissive:
+		material.emission_enabled = true
+		material.emission = color * 0.7
+
+func _apply_wall_material(visual: MeshInstance3D, uv_scale: Vector3) -> void:
+	var material: StandardMaterial3D = visual.material_override
+	material.albedo_color = Color("a8b1af")
+	material.albedo_texture = WALL_TEXTURE
+	material.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
+	material.uv1_scale = uv_scale
+	material.roughness = 0.88
+	material.metallic = 0.08
+
+func _add_external_props() -> void:
+	_add_gltf_prop("Prop_Locker.gltf", Vector3(-2.68, 0, 5.65), Vector3(0, PI * 0.5, 0), 0.78)
+	_add_gltf_prop("Prop_Shelves_ThinTall.gltf", Vector3(2.68, 0, 4.2), Vector3(0, -PI * 0.5, 0), 0.82)
+	_add_gltf_prop("Prop_Crate.gltf", Vector3(2.4, 0, 1.25), Vector3(0, -0.18, 0), 0.72)
+	_add_gltf_prop("Prop_Desk_Medium.gltf", Vector3(-2.2, 0, -7.55), Vector3(0, PI * 0.5, 0), 0.72)
+	_add_gltf_prop("Prop_Chair.gltf", Vector3(-1.15, 0, -7.3), Vector3(0, -PI * 0.35, 0), 0.72)
+
+func _add_gltf_prop(file_name: String, pos: Vector3, rotation_value: Vector3, uniform_scale: float) -> void:
+	var packed := load(PROP_ROOT + file_name) as PackedScene
+	if packed == null:
+		push_warning("Unable to load environment prop: " + file_name)
+		return
+	var prop := packed.instantiate() as Node3D
+	prop.name = file_name.get_basename()
+	prop.position = pos
+	prop.rotation = rotation_value
+	prop.scale = Vector3.ONE * uniform_scale
+	add_child(prop)
 
 func _box(n: String, size: Vector3, pos: Vector3, color: Color, collision_enabled: bool) -> MeshInstance3D:
 	var visual := MeshInstance3D.new()
@@ -126,6 +191,8 @@ func _box(n: String, size: Vector3, pos: Vector3, color: Color, collision_enable
 	visual.position = pos
 	var mat := StandardMaterial3D.new()
 	mat.albedo_color = color
+	mat.roughness = 0.82
+	mat.metallic = 0.12
 	visual.material_override = mat
 	add_child(visual)
 	if collision_enabled:
@@ -156,6 +223,8 @@ func _target(id: String, n: String, size: Vector3, pos: Vector3, color: Color) -
 	visual.mesh = mesh
 	var mat := StandardMaterial3D.new()
 	mat.albedo_color = color
+	mat.roughness = 0.68
+	mat.metallic = 0.22
 	visual.material_override = mat
 	body.add_child(visual)
 	add_child(body)
@@ -190,16 +259,40 @@ func _observer_mesh(node_name: String, pos: Vector3, color: Color) -> MeshInstan
 func _build_ui() -> void:
 	var canvas := CanvasLayer.new()
 	add_child(canvas)
+	var ui_theme := _create_ui_theme()
+	menu_backdrop = ColorRect.new()
+	menu_backdrop.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	menu_backdrop.color = Color("e60a0f12")
+	menu_backdrop.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	canvas.add_child(menu_backdrop)
+	var top_rule := ColorRect.new()
+	top_rule.set_anchors_preset(Control.PRESET_TOP_WIDE)
+	top_rule.offset_bottom = 4.0
+	top_rule.color = Color("7db3a6")
+	menu_backdrop.add_child(top_rule)
 	lobby_panel = PanelContainer.new()
-	lobby_panel.position = Vector2(32, 32)
-	lobby_panel.size = Vector2(430, 300)
+	lobby_panel.size = Vector2(500, 390)
+	lobby_panel.set_anchors_and_offsets_preset(Control.PRESET_CENTER, Control.PRESET_MODE_KEEP_SIZE)
+	lobby_panel.theme = ui_theme
+	lobby_panel.add_theme_stylebox_override("panel", _panel_style(Color("f21a2327"), Color("536b70"), 12, 2, 24))
 	var lobby := VBoxContainer.new()
-	lobby.add_theme_constant_override("separation", 12)
+	lobby.add_theme_constant_override("separation", 14)
 	lobby_panel.add_child(lobby)
 	title_label = Label.new()
-	title_label.add_theme_font_size_override("font_size", 24)
+	title_label.add_theme_font_size_override("font_size", 34)
+	title_label.add_theme_color_override("font_color", Color("dce9e5"))
+	title_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	lobby.add_child(title_label)
+	subtitle_label = Label.new()
+	subtitle_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	subtitle_label.add_theme_font_size_override("font_size", 13)
+	subtitle_label.add_theme_color_override("font_color", Color("7fa89f"))
+	lobby.add_child(subtitle_label)
+	var divider := HSeparator.new()
+	lobby.add_child(divider)
 	var language_row := HBoxContainer.new()
+	language_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	language_row.add_theme_constant_override("separation", 14)
 	language_label = Label.new()
 	language_row.add_child(language_label)
 	language_option = OptionButton.new()
@@ -220,11 +313,19 @@ func _build_ui() -> void:
 	lobby.add_child(join_button)
 	status_label = Label.new()
 	status_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	status_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	status_label.add_theme_color_override("font_color", Color("94aaa5"))
 	lobby.add_child(status_label)
+	menu_footer_label = Label.new()
+	menu_footer_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	menu_footer_label.add_theme_font_size_override("font_size", 11)
+	menu_footer_label.add_theme_color_override("font_color", Color("53676b"))
+	lobby.add_child(menu_footer_label)
 	canvas.add_child(lobby_panel)
 	hud = VBoxContainer.new()
 	hud.position = Vector2(24, 20)
 	hud.size = Vector2(720, 210)
+	hud.theme = ui_theme
 	instruction_label = Label.new()
 	instruction_label.add_theme_font_size_override("font_size", 20)
 	instruction_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -245,14 +346,19 @@ func _build_ui() -> void:
 	prompt_label.size = Vector2(440, 60)
 	prompt_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	prompt_label.add_theme_font_size_override("font_size", 20)
+	prompt_label.add_theme_color_override("font_color", Color("d9e5d1"))
+	prompt_label.theme = ui_theme
 	canvas.add_child(prompt_label)
 	log_label = RichTextLabel.new()
 	log_label.position = Vector2(24, 535)
 	log_label.size = Vector2(850, 160)
+	log_label.theme = ui_theme
 	canvas.add_child(log_label)
 	result_panel = PanelContainer.new()
 	result_panel.position = Vector2(390, 230)
 	result_panel.size = Vector2(500, 240)
+	result_panel.theme = ui_theme
+	result_panel.add_theme_stylebox_override("panel", _panel_style(Color("f21a2327"), Color("7db3a6"), 10, 2, 24))
 	result_label = Label.new()
 	result_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	result_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
@@ -273,6 +379,33 @@ func _build_ui() -> void:
 	canvas.add_child(crosshair)
 	_refresh_language()
 
+func _create_ui_theme() -> Theme:
+	var theme := Theme.new()
+	theme.set_default_font_size(16)
+	theme.set_color("font_color", "Label", Color("c8d5d1"))
+	theme.set_color("font_color", "Button", Color("d9e5e1"))
+	theme.set_color("font_hover_color", "Button", Color.WHITE)
+	theme.set_color("font_pressed_color", "Button", Color("0d1719"))
+	theme.set_stylebox("normal", "Button", _panel_style(Color("2a373b"), Color("536b70"), 5, 1))
+	theme.set_stylebox("hover", "Button", _panel_style(Color("35484c"), Color("7db3a6"), 5, 1))
+	theme.set_stylebox("pressed", "Button", _panel_style(Color("7db3a6"), Color("9dd1c4"), 5, 1))
+	theme.set_stylebox("normal", "LineEdit", _panel_style(Color("b30d1417"), Color("465a5f"), 4, 1))
+	theme.set_stylebox("focus", "LineEdit", _panel_style(Color("d9141e21"), Color("7db3a6"), 4, 2))
+	theme.set_color("font_color", "LineEdit", Color("cbd8d4"))
+	return theme
+
+func _panel_style(background: Color, border: Color, radius: int, border_width: int, padding: int = 8) -> StyleBoxFlat:
+	var style := StyleBoxFlat.new()
+	style.bg_color = background
+	style.border_color = border
+	style.set_border_width_all(border_width)
+	style.set_corner_radius_all(radius)
+	style.content_margin_left = padding
+	style.content_margin_right = padding
+	style.content_margin_top = padding
+	style.content_margin_bottom = padding
+	return style
+
 func _language_selected(index: int) -> void:
 	Localization.set_locale("ru" if index == 0 else "en")
 
@@ -281,12 +414,14 @@ func _on_language_changed(_locale: String) -> void:
 
 func _refresh_language() -> void:
 	title_label.text = Localization.text("title")
+	subtitle_label.text = Localization.text("menu_subtitle")
 	language_label.text = Localization.text("language") + ":"
 	address_edit.placeholder_text = Localization.text("server_address")
 	host_button.text = Localization.text("host")
 	join_button.text = Localization.text("join")
 	controls_label.text = Localization.text("controls")
 	restart_button.text = Localization.text("restart")
+	menu_footer_label.text = Localization.text("menu_footer")
 	_update_timer_label(round_time_remaining)
 	if not round_started:
 		status_label.text = Localization.text("start_hint")
@@ -345,6 +480,7 @@ func _on_peer_disconnected(id: int) -> void:
 
 func _start_round() -> void:
 	lobby_panel.visible = false
+	menu_backdrop.visible = false
 	hud.visible = true
 	_apply_perception()
 
@@ -398,7 +534,8 @@ func _apply_perception() -> void:
 		door_mesh.visible = false
 		# This wall is locally physical: it blocks both movement and the interaction
 		# ray, so a player who cannot perceive the door cannot operate or cross it.
-		perception_overlay = _box("LocalWall", Vector3(2, 2.5, .34), DOOR_POS, Color("596164"), true)
+		perception_overlay = _box("LocalWall", Vector3(2, 2.5, .34), DOOR_POS, Color.WHITE, true)
+		_apply_wall_material(perception_overlay, Vector3(1, 1.5, 1))
 		false_observer_visual = _observer_mesh("FalseObserver", Vector3(-2.1, 0.8, 4.0), Color("b7a7ce"))
 
 func _update_observer(delta: float) -> void:

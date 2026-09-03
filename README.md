@@ -58,3 +58,9 @@ The gaze test uses player direction, distance, and an authoritative physics ray,
 After five unseen movements, Observer reaches critical activity: normal lighting fails and the shift can no longer receive a fully stable result. The shift also has a synchronized five-minute limit. When a run ends, either player can request **Start New Shift** to reset the shared round without restarting the application.
 
 The project has been import- and startup-checked with Godot `4.7.2-stable`. Multiplayer behavior should still be verified with two visible debug instances after gameplay changes.
+
+## Visual prototype
+
+The start menu is centered and scales from viewport anchors. Its current visual language uses dark oxidized metal, restrained green-gray accents, and internal-facility typography. The corridor combines procedural structural ribs, light panels, wall rails, floor joints, fog, and amber/blue containment navigation with a project-specific wall texture and a curated set of low-poly CC0 environment props.
+
+See `ASSET_SOURCES.md` for provenance, licenses, and optimization notes.
