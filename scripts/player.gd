@@ -3,12 +3,12 @@ extends CharacterBody3D
 
 const SPEED := 4.5
 const MOUSE_SENSITIVITY := 0.0025
-const RAY_DISTANCE := 3.5
 var peer_id: int
 var is_local := false
 var look_pitch := 0.0
 var camera: Camera3D
 var current_target := ""
+var interaction_probe: InteractionProbe
 
 func configure(id: int, local_player: bool) -> void:
 	peer_id = id
@@ -36,6 +36,9 @@ func configure(id: int, local_player: bool) -> void:
 	camera.position = Vector3(0.0, 1.55, 0.0)
 	camera.fov = 75.0
 	add_child(camera)
+	interaction_probe = InteractionProbe.new()
+	add_child(interaction_probe)
+	interaction_probe.configure(camera, get_rid())
 	if is_local:
 		camera.current = true
 		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
@@ -70,15 +73,7 @@ func _physics_process(delta: float) -> void:
 		get_parent().request_verification(peer_id)
 
 func _update_target() -> void:
-	var from := camera.global_position
-	var query := PhysicsRayQueryParameters3D.create(from, from - camera.global_transform.basis.z * RAY_DISTANCE)
-	query.exclude = [get_rid()]
-	var hit := get_world_3d().direct_space_state.intersect_ray(query)
-	current_target = ""
-	if not hit.is_empty():
-		var collider: Object = hit.get("collider")
-		if collider != null and collider.has_meta("interaction_id"):
-			current_target = str(collider.get_meta("interaction_id"))
+	current_target = interaction_probe.target_id()
 	get_parent().update_interaction_prompt(current_target, get_parent().container_carrier == peer_id)
 
 @rpc("any_peer", "call_remote", "unreliable", 1)

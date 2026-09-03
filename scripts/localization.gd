@@ -6,7 +6,7 @@ const SETTINGS_PATH := "user://settings.cfg"
 const SUPPORTED_LOCALES := ["ru", "en"]
 const TEXT := {
 	"ru": {
-		"title": "SHIFT 51 — ПРОТОТИП 02", "language": "Язык", "server_address": "Адрес сервера",
+		"title": "SHIFT 51 — ПРОТОТИП 03", "language": "Язык", "server_address": "Адрес сервера",
 		"host": "НАЧАТЬ СМЕНУ", "join": "ПОДКЛЮЧИТЬСЯ",
 		"start_hint": "Запустите две копии: в одной создайте смену, во второй подключитесь.",
 		"controls": "WASD — движение | Мышь — обзор | E — взаимодействие | V — сканер рядом с контейнером | Esc — мышь",
@@ -41,10 +41,11 @@ const TEXT := {
 		"log_pickup": "СЕРВЕР: сотрудник %d взял контейнер",
 		"log_task_result": "СЕРВЕР: сотрудник %d завершил содержание — %s",
 		"log_power_failure": "КОМПЛЕКС: ошибка содержания вызвала аварийное отключение питания",
-		"log_elevator_locked": "ЛИФТ: сначала завершите основную задачу"
+		"log_elevator_locked": "ЛИФТ: сначала завершите основную задачу",
+		"log_observer_moved": "АНОМАЛИЯ: объект Observer переместился вне поля зрения"
 	},
 	"en": {
-		"title": "SHIFT 51 — PROTOTYPE 02", "language": "Language", "server_address": "Server address",
+		"title": "SHIFT 51 — PROTOTYPE 03", "language": "Language", "server_address": "Server address",
 		"host": "HOST SHIFT", "join": "JOIN SHIFT", "start_hint": "Start two copies: host in one, join in another.",
 		"controls": "WASD — move | Mouse — look | E — interact | V — scan near container | Esc — release mouse",
 		"host_error": "Host error: %s", "join_error": "Join error: %s", "connecting": "Connecting…",
@@ -77,7 +78,8 @@ const TEXT := {
 		"log_pickup": "AUTHORITY: employee %d picked up the container",
 		"log_task_result": "AUTHORITY: employee %d resolved containment — %s",
 		"log_power_failure": "FACILITY: containment error triggered emergency power loss",
-		"log_elevator_locked": "ELEVATOR: resolve the primary task first"
+		"log_elevator_locked": "ELEVATOR: resolve the primary task first",
+		"log_observer_moved": "ANOMALY: Observer moved while outside every field of view"
 	}
 }
 

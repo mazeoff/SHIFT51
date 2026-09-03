@@ -4,7 +4,7 @@
 
 Last updated: **2026-09-03**
 
-The repository now contains **Prototype 02**, a short networked shift built for Godot 4.x.
+The repository now contains **Prototype 03**, a short networked shift with its first rule-changing artifact, built for Godot 4.x.
 
 Implemented:
 
@@ -29,11 +29,17 @@ Implemented:
 - an incorrect placement consequence that changes facility lighting to emergency red;
 - an extraction elevator that becomes available after the containment decision;
 - localized success/breach end-of-shift summaries.
+- a reusable `InteractionProbe` component responsible for camera-ray target detection;
+- an `Observer` artifact with four predefined authoritative positions;
+- host-side gaze-cone checks: if no connected player faces the Observer for 2.5 seconds, it moves to its next position;
+- reliable replication of Observer movement to all players;
+- a cosmetic false Observer visible only to connected non-host players, demonstrating identity/perception divergence.
 
 Not yet implemented:
 
 - a round timer;
 - multi-stage anomaly escalation beyond the first power-loss consequence;
+- exact line-of-sight occlusion for Observer gaze checks (the current prototype uses distance and facing direction);
 - audio divergence;
 - production-ready replication, prediction, or reconnect handling;
 - polished environment art and sound.

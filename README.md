@@ -1,4 +1,4 @@
-# SHIFT 51 — Prototype 02
+# SHIFT 51 — Prototype 03
 
 A minimal Godot 4 multiplayer prototype for testing conflicting player perceptions.
 
@@ -48,3 +48,9 @@ The playable loop is now:
 6. Return to the elevator panel at the start of the corridor and press `E` to end the shift.
 
 Choosing the wrong bay does not immediately end the run. It causes an emergency power failure and produces a breach result after extraction. The on-screen log distinguishes local information from host-authoritative events for debugging.
+
+## Observer artifact
+
+The pale spherical artifact changes position after 2.5 seconds outside every player's forward view. Movement is selected by the host from four predefined points and replicated to all players. Connected non-host players also see a purple-tinted false copy that does not exist in the authoritative simulation.
+
+The current gaze test uses player direction and distance rather than exact geometry occlusion. This is intentional for Prototype 03 and is documented in `agents.md`.

@@ -7,6 +7,12 @@ const DOOR_POS := Vector3(0, 1.25, -6)
 const BOX_START := Vector3(0, 0.5, 0.5)
 const BAY_A := Vector3(-2.15, 0.2, -3.2)
 const BAY_B := Vector3(2.15, 0.2, -3.2)
+const OBSERVER_POINTS := [
+	Vector3(0.0, 0.8, -1.5),
+	Vector3(-2.1, 0.8, 2.0),
+	Vector3(2.1, 0.8, -4.7),
+	Vector3(0.0, 0.8, 3.8)
+]
 var players := {}
 var targets := {}
 var door_open := false
@@ -18,12 +24,17 @@ var containment_success := false
 var power_online := true
 var round_started := false
 var round_finished := false
+var observer_point_index := 0
+var observer_unseen_time := 0.0
+var observer_move_delay := 2.5
 var door_body: StaticBody3D
 var door_mesh: MeshInstance3D
 var perception_overlay: MeshInstance3D
 var container_body: StaticBody3D
 var container_collision: CollisionShape3D
 var lights: Array[OmniLight3D] = []
+var observer_visual: MeshInstance3D
+var false_observer_visual: MeshInstance3D
 var lobby_panel: PanelContainer
 var hud: VBoxContainer
 var status_label: Label
@@ -51,11 +62,13 @@ func _ready() -> void:
 	multiplayer.connection_failed.connect(_on_connection_failed)
 	_log(Localization.text("log_initial"))
 
-func _physics_process(_delta: float) -> void:
+func _physics_process(delta: float) -> void:
 	if multiplayer.is_server() and container_carrier != 0 and players.has(container_carrier):
 		var p: ShiftPlayer = players[container_carrier]
 		container_position = p.global_position - p.global_transform.basis.z * 1.15 + Vector3.UP * 1.15
 		_set_container.rpc(container_position, container_carrier)
+	if multiplayer.is_server() and round_started and not round_finished:
+		_update_observer(delta)
 
 func _build_world() -> void:
 	var world := WorldEnvironment.new()
@@ -85,6 +98,7 @@ func _build_world() -> void:
 	_world_label("A-17 / AMBER", BAY_A + Vector3(0, 1.3, 0), Color("d89a55"))
 	_world_label("B-04 / BLUE", BAY_B + Vector3(0, 1.3, 0), Color("5eb5dd"))
 	_world_label("SHIFT EXIT", Vector3(0, 2.6, 7.5), Color("b9d6c8"))
+	observer_visual = _observer_mesh("Observer", OBSERVER_POINTS[0], Color("d7d1bb"))
 	for z in [-6.5, -3.0, 1.0, 5.0]:
 		var light := OmniLight3D.new()
 		light.position = Vector3(0, 2.7, z)
@@ -147,6 +161,22 @@ func _world_label(value: String, pos: Vector3, color: Color) -> void:
 	label.font_size = 40
 	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	add_child(label)
+
+func _observer_mesh(node_name: String, pos: Vector3, color: Color) -> MeshInstance3D:
+	var visual := MeshInstance3D.new()
+	visual.name = node_name
+	var mesh := SphereMesh.new()
+	mesh.radius = 0.42
+	mesh.height = 0.84
+	visual.mesh = mesh
+	visual.position = pos
+	var material := StandardMaterial3D.new()
+	material.albedo_color = color
+	material.emission_enabled = true
+	material.emission = color * 0.22
+	visual.material_override = material
+	add_child(visual)
+	return visual
 
 func _build_ui() -> void:
 	var canvas := CanvasLayer.new()
@@ -332,6 +362,7 @@ func _apply_perception() -> void:
 	if not round_started or instruction_label == null: return
 	var local_id := multiplayer.get_unique_id()
 	if is_instance_valid(perception_overlay): perception_overlay.queue_free()
+	if is_instance_valid(false_observer_visual): false_observer_visual.queue_free()
 	if local_id == 1:
 		instruction_label.text = Localization.text("order_a")
 		evidence_label.text = Localization.text("perception_a")
@@ -341,6 +372,34 @@ func _apply_perception() -> void:
 		evidence_label.text = Localization.text("perception_b")
 		door_mesh.visible = false
 		perception_overlay = _box("LocalWall", Vector3(2, 2.5, .34), DOOR_POS, Color("596164"), false)
+		false_observer_visual = _observer_mesh("FalseObserver", Vector3(-2.1, 0.8, 4.0), Color("b7a7ce"))
+
+func _update_observer(delta: float) -> void:
+	if _observer_is_watched():
+		observer_unseen_time = 0.0
+		return
+	observer_unseen_time += delta
+	if observer_unseen_time < observer_move_delay:
+		return
+	observer_unseen_time = 0.0
+	observer_point_index = (observer_point_index + 1) % OBSERVER_POINTS.size()
+	_set_observer_position.rpc(observer_point_index)
+
+func _observer_is_watched() -> bool:
+	for value in players.values():
+		var player: ShiftPlayer = value
+		var offset := observer_visual.global_position - (player.global_position + Vector3.UP * 1.55)
+		if offset.length() <= 8.0:
+			var forward := -player.global_transform.basis.z
+			if forward.dot(offset.normalized()) > 0.84:
+				return true
+	return false
+
+@rpc("authority", "call_local", "reliable")
+func _set_observer_position(point_index: int) -> void:
+	observer_point_index = point_index
+	observer_visual.global_position = OBSERVER_POINTS[point_index]
+	_log(Localization.text("log_observer_moved"))
 
 func update_interaction_prompt(id: String, carrying: bool) -> void:
 	if id.is_empty() or round_finished:
