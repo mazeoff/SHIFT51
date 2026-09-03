@@ -72,6 +72,10 @@ Known limitation: the prototype deliberately uses lightweight client-owned movem
 
 Update this `Current Project State` section whenever implementation, scope, controls, architecture, or design decisions change. It must describe the code that actually exists, not only planned features.
 
+### Working Directory Rule
+
+All project files must be created and edited directly under `/home/mazeoff/Рабочий стол/dev/godot/SHIFT 51`. Do not use persistent staging copies in `/tmp` or another workspace. Temporary diagnostic output may use the system temporary directory only when it is not part of the project and is removed after use.
+
 ## Project Overview
 
 Working title: **SHIFT 51**
