@@ -53,4 +53,8 @@ Choosing the wrong bay does not immediately end the run. It causes an emergency 
 
 The pale spherical artifact changes position after 2.5 seconds outside every player's forward view. Movement is selected by the host from four predefined points and replicated to all players. Connected non-host players also see a purple-tinted false copy that does not exist in the authoritative simulation.
 
-The current gaze test uses player direction and distance rather than exact geometry occlusion. This is intentional for Prototype 03 and is documented in `agents.md`.
+The gaze test uses player direction, distance, and an authoritative physics ray, so facility geometry can block observation. Each movement briefly shrinks and restores the object instead of visibly sliding it between points.
+
+After five unseen movements, Observer reaches critical activity: normal lighting fails and the shift can no longer receive a fully stable result. The shift also has a synchronized five-minute limit. When a run ends, either player can request **Start New Shift** to reset the shared round without restarting the application.
+
+The project has been import- and startup-checked with Godot `4.7.2-stable`. Multiplayer behavior should still be verified with two visible debug instances after gameplay changes.

@@ -34,12 +34,16 @@ Implemented:
 - host-side gaze-cone checks: if no connected player faces the Observer for 2.5 seconds, it moves to its next position;
 - reliable replication of Observer movement to all players;
 - a cosmetic false Observer visible only to connected non-host players, demonstrating identity/perception divergence.
+- physics-ray occlusion checks, so walls and closed doors now block observation of the Observer;
+- a short shrink/restore transition that hides authoritative Observer teleportation;
+- an Observer breach threshold of five unseen movements; reaching it disables normal lighting and prevents a fully successful shift result;
+- a host-authoritative five-minute shift timer synchronized to clients four times per second;
+- automatic failed extraction when the timer expires;
+- a synchronized **Start New Shift** action that resets players, artifacts, containment state, lighting, verification charge, timer, and result UI without restarting the application.
 
 Not yet implemented:
 
-- a round timer;
 - multi-stage anomaly escalation beyond the first power-loss consequence;
-- exact line-of-sight occlusion for Observer gaze checks (the current prototype uses distance and facing direction);
 - audio divergence;
 - production-ready replication, prediction, or reconnect handling;
 - polished environment art and sound.
@@ -67,6 +71,10 @@ Current test procedure:
 11. Return to the elevator at the beginning of the corridor, aim at its panel, and press `E`.
 
 Known limitation: the prototype deliberately uses lightweight client-owned movement synchronization. Important interactions and door state remain server-authoritative. Movement authority should be hardened after the core interaction is validated.
+
+Observer observation currently uses server-known player position and yaw plus an authoritative physics ray. Vertical camera pitch is not yet replicated, so the gaze cone is intentionally evaluated in the player's forward body direction.
+
+Validation: the project imports successfully and its main scene starts without script or runtime construction errors under Godot `4.7.2-stable` in headless mode. Automated multi-instance interaction testing is not yet implemented.
 
 ### Documentation Rule
 

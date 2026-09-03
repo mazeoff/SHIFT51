@@ -7,6 +7,8 @@ const DOOR_POS := Vector3(0, 1.25, -6)
 const BOX_START := Vector3(0, 0.5, 0.5)
 const BAY_A := Vector3(-2.15, 0.2, -3.2)
 const BAY_B := Vector3(2.15, 0.2, -3.2)
+const ROUND_DURATION := 300.0
+const OBSERVER_BREACH_MOVES := 5
 const OBSERVER_POINTS := [
 	Vector3(0.0, 0.8, -1.5),
 	Vector3(-2.1, 0.8, 2.0),
@@ -27,6 +29,10 @@ var round_finished := false
 var observer_point_index := 0
 var observer_unseen_time := 0.0
 var observer_move_delay := 2.5
+var observer_move_count := 0
+var observer_breached := false
+var round_time_remaining := ROUND_DURATION
+var timer_sync_accumulator := 0.0
 var door_body: StaticBody3D
 var door_mesh: MeshInstance3D
 var perception_overlay: MeshInstance3D
@@ -51,6 +57,8 @@ var language_option: OptionButton
 var host_button: Button
 var join_button: Button
 var controls_label: Label
+var timer_label: Label
+var restart_button: Button
 
 func _ready() -> void:
 	_build_world()
@@ -69,6 +77,7 @@ func _physics_process(delta: float) -> void:
 		_set_container.rpc(container_position, container_carrier)
 	if multiplayer.is_server() and round_started and not round_finished:
 		_update_observer(delta)
+		_update_round_timer(delta)
 
 func _build_world() -> void:
 	var world := WorldEnvironment.new()
@@ -226,6 +235,9 @@ func _build_ui() -> void:
 	controls_label = Label.new()
 	controls_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	hud.add_child(controls_label)
+	timer_label = Label.new()
+	timer_label.add_theme_font_size_override("font_size", 18)
+	hud.add_child(timer_label)
 	hud.visible = false
 	canvas.add_child(hud)
 	prompt_label = Label.new()
@@ -246,7 +258,12 @@ func _build_ui() -> void:
 	result_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	result_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	result_label.add_theme_font_size_override("font_size", 24)
-	result_panel.add_child(result_label)
+	var result_content := VBoxContainer.new()
+	result_content.add_child(result_label)
+	restart_button = Button.new()
+	restart_button.pressed.connect(_request_restart)
+	result_content.add_child(restart_button)
+	result_panel.add_child(result_content)
 	result_panel.visible = false
 	canvas.add_child(result_panel)
 	var crosshair := Label.new()
@@ -269,6 +286,8 @@ func _refresh_language() -> void:
 	host_button.text = Localization.text("host")
 	join_button.text = Localization.text("join")
 	controls_label.text = Localization.text("controls")
+	restart_button.text = Localization.text("restart")
+	_update_timer_label(round_time_remaining)
 	if not round_started:
 		status_label.text = Localization.text("start_hint")
 	elif task_resolved:
@@ -312,7 +331,7 @@ func _on_peer_connected(id: int) -> void:
 	if not multiplayer.is_server(): return
 	for existing_id in players.keys(): spawn_player.rpc_id(id, existing_id)
 	spawn_player.rpc(id)
-	_sync_state.rpc_id(id, door_open, verification_charges, container_carrier, container_position, task_resolved, containment_success, power_online)
+	_sync_state.rpc_id(id, door_open, verification_charges, container_carrier, container_position, task_resolved, containment_success, power_online, observer_point_index, observer_move_count, observer_breached, round_time_remaining)
 	_log_key.rpc("log_entered", [id])
 
 func _on_peer_disconnected(id: int) -> void:
@@ -349,14 +368,20 @@ func _apply_player_transform(id: int, pos: Vector3, yaw: float) -> void:
 		players[id].rotation.y = yaw
 
 @rpc("authority", "call_remote", "reliable")
-func _sync_state(remote_door: bool, charges: int, carrier: int, pos: Vector3, resolved: bool, success: bool, online: bool) -> void:
+func _sync_state(remote_door: bool, charges: int, carrier: int, pos: Vector3, resolved: bool, success: bool, online: bool, observer_index: int, moves: int, breached: bool, time_left: float) -> void:
 	_apply_door(remote_door)
 	verification_charges = charges
 	task_resolved = resolved
 	containment_success = success
 	power_online = online
+	observer_point_index = observer_index
+	observer_move_count = moves
+	observer_breached = breached
+	round_time_remaining = time_left
 	_set_container(pos, carrier)
 	_apply_power()
+	observer_visual.global_position = OBSERVER_POINTS[observer_point_index]
+	_update_timer_label(round_time_remaining)
 
 func _apply_perception() -> void:
 	if not round_started or instruction_label == null: return
@@ -388,18 +413,44 @@ func _update_observer(delta: float) -> void:
 func _observer_is_watched() -> bool:
 	for value in players.values():
 		var player: ShiftPlayer = value
-		var offset := observer_visual.global_position - (player.global_position + Vector3.UP * 1.55)
+		var eye_position := player.global_position + Vector3.UP * 1.55
+		var offset := observer_visual.global_position - eye_position
 		if offset.length() <= 8.0:
 			var forward := -player.global_transform.basis.z
-			if forward.dot(offset.normalized()) > 0.84:
+			if forward.dot(offset.normalized()) > 0.84 and _has_clear_observer_view(player, eye_position):
 				return true
 	return false
+
+func _has_clear_observer_view(player: ShiftPlayer, eye_position: Vector3) -> bool:
+	var query := PhysicsRayQueryParameters3D.create(eye_position, observer_visual.global_position)
+	query.exclude = [player.get_rid()]
+	var hit := get_world_3d().direct_space_state.intersect_ray(query)
+	return hit.is_empty()
 
 @rpc("authority", "call_local", "reliable")
 func _set_observer_position(point_index: int) -> void:
 	observer_point_index = point_index
-	observer_visual.global_position = OBSERVER_POINTS[point_index]
+	observer_move_count += 1
+	var tween := create_tween()
+	tween.tween_property(observer_visual, "scale", Vector3.ZERO, 0.12)
+	tween.tween_callback(_teleport_observer.bind(point_index))
+	tween.tween_property(observer_visual, "scale", Vector3.ONE, 0.18)
 	_log(Localization.text("log_observer_moved"))
+	if multiplayer.is_server() and not observer_breached and observer_move_count >= OBSERVER_BREACH_MOVES:
+		observer_breached = true
+		_observer_breach.rpc()
+
+func _teleport_observer(point_index: int) -> void:
+	observer_visual.global_position = OBSERVER_POINTS[point_index]
+
+@rpc("authority", "call_local", "reliable")
+func _observer_breach() -> void:
+	observer_breached = true
+	evidence_label.text = Localization.text("observer_breach")
+	_log(Localization.text("log_observer_breach"))
+	if power_online:
+		power_online = false
+		_apply_power()
 
 func update_interaction_prompt(id: String, carrying: bool) -> void:
 	if id.is_empty() or round_finished:
@@ -437,7 +488,7 @@ func _server_interact(peer_id: int, id: String) -> void:
 		"elevator":
 			if task_resolved:
 				round_finished = true
-				_finish_round.rpc(containment_success)
+				_finish_round.rpc(containment_success and not observer_breached, false)
 			else: _log_key.rpc("log_elevator_locked")
 
 @rpc("authority", "call_local", "reliable")
@@ -486,6 +537,27 @@ func _apply_power() -> void:
 		light.light_color = Color("c7ded8") if power_online else Color("a51f18")
 		light.light_energy = 1.8 if power_online else .65
 
+func _update_round_timer(delta: float) -> void:
+	round_time_remaining = maxf(0.0, round_time_remaining - delta)
+	timer_sync_accumulator += delta
+	if timer_sync_accumulator >= 0.25:
+		timer_sync_accumulator = 0.0
+		_sync_timer.rpc(round_time_remaining)
+	if round_time_remaining <= 0.0:
+		round_finished = true
+		_finish_round.rpc(false, true)
+
+@rpc("authority", "call_local", "unreliable", 3)
+func _sync_timer(time_left: float) -> void:
+	round_time_remaining = time_left
+	_update_timer_label(time_left)
+
+func _update_timer_label(time_left: float) -> void:
+	if timer_label == null:
+		return
+	var total_seconds := maxi(0, ceili(time_left))
+	timer_label.text = Localization.text("timer", [floori(total_seconds / 60.0), total_seconds % 60])
+
 func request_verification(peer_id: int) -> void:
 	if multiplayer.is_server(): _server_verify(peer_id)
 	else: _request_verification.rpc_id(1)
@@ -511,12 +583,55 @@ func _reveal_evidence(peer_id: int) -> void:
 	_log(Localization.text("log_verified", [peer_id]))
 
 @rpc("authority", "call_local", "reliable")
-func _finish_round(success: bool) -> void:
+func _finish_round(success: bool, timed_out: bool) -> void:
 	round_finished = true
 	containment_success = success
-	result_label.text = Localization.text("result_success" if success else "result_failure")
+	result_label.text = Localization.text("result_timeout" if timed_out else ("result_success" if success else "result_failure"))
 	result_panel.visible = true
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+
+func _request_restart() -> void:
+	if multiplayer.is_server():
+		_reset_round.rpc()
+	else:
+		_request_restart_on_server.rpc_id(1)
+
+@rpc("any_peer", "call_remote", "reliable")
+func _request_restart_on_server() -> void:
+	if multiplayer.is_server() and round_finished:
+		_reset_round.rpc()
+
+@rpc("authority", "call_local", "reliable")
+func _reset_round() -> void:
+	door_open = false
+	verification_charges = 1
+	container_carrier = 0
+	container_position = BOX_START
+	task_resolved = false
+	containment_success = false
+	power_online = true
+	round_finished = false
+	observer_point_index = 0
+	observer_move_count = 0
+	observer_breached = false
+	observer_unseen_time = 0.0
+	round_time_remaining = ROUND_DURATION
+	timer_sync_accumulator = 0.0
+	_apply_door(false)
+	_set_container(BOX_START, 0)
+	observer_visual.global_position = OBSERVER_POINTS[0]
+	observer_visual.scale = Vector3.ONE
+	_apply_power()
+	for id in players.keys():
+		players[id].global_position = Vector3(-0.8 + players.keys().find(id) * 1.2, 0.0, 5.0)
+	result_panel.visible = false
+	prompt_label.text = ""
+	log_label.clear()
+	_apply_perception()
+	_update_timer_label(round_time_remaining)
+	if players.has(multiplayer.get_unique_id()):
+		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+	_log(Localization.text("log_round_restarted"))
 
 @rpc("authority", "call_local", "reliable")
 func _log_key(key: String, values: Array = []) -> void:

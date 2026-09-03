@@ -42,7 +42,12 @@ const TEXT := {
 		"log_task_result": "СЕРВЕР: сотрудник %d завершил содержание — %s",
 		"log_power_failure": "КОМПЛЕКС: ошибка содержания вызвала аварийное отключение питания",
 		"log_elevator_locked": "ЛИФТ: сначала завершите основную задачу",
-		"log_observer_moved": "АНОМАЛИЯ: объект Observer переместился вне поля зрения"
+		"log_observer_moved": "АНОМАЛИЯ: объект Observer переместился вне поля зрения",
+		"timer": "ДО КОНЦА СМЕНЫ: %02d:%02d", "restart": "НАЧАТЬ НОВУЮ СМЕНУ",
+		"observer_breach": "ТРЕВОГА: Observer перемещался слишком часто. Стабильность комплекса нарушена.",
+		"log_observer_breach": "АНОМАЛИЯ: Observer достиг критического уровня активности",
+		"log_round_restarted": "СИСТЕМА: состояние смены сброшено",
+		"result_timeout": "ВРЕМЯ СМЕНЫ ИСТЕКЛО\nЭвакуация выполнена автоматически.\nОсновная задача не засчитана."
 	},
 	"en": {
 		"title": "SHIFT 51 — PROTOTYPE 03", "language": "Language", "server_address": "Server address",
@@ -79,7 +84,12 @@ const TEXT := {
 		"log_task_result": "AUTHORITY: employee %d resolved containment — %s",
 		"log_power_failure": "FACILITY: containment error triggered emergency power loss",
 		"log_elevator_locked": "ELEVATOR: resolve the primary task first",
-		"log_observer_moved": "ANOMALY: Observer moved while outside every field of view"
+		"log_observer_moved": "ANOMALY: Observer moved while outside every field of view",
+		"timer": "SHIFT TIME: %02d:%02d", "restart": "START NEW SHIFT",
+		"observer_breach": "ALERT: Observer moved too often. Facility stability has been breached.",
+		"log_observer_breach": "ANOMALY: Observer reached critical activity",
+		"log_round_restarted": "SYSTEM: shift state reset",
+		"result_timeout": "SHIFT TIME EXPIRED\nAutomatic extraction executed.\nPrimary task not credited."
 	}
 }
 
