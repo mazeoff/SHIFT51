@@ -14,6 +14,7 @@ Implemented:
 - first-person movement and mouse look with host-relayed transform synchronization;
 - a shared server-authoritative physical door;
 - player-specific perception: the host sees a door and receives destination A-17, while connected clients see a wall and receive destination B-04;
+- the perceived wall has client-local collision and no interaction metadata, preventing affected players from crossing or operating the hidden authoritative door;
 - server-authoritative door interaction with range validation;
 - one shared verification charge that reveals the container's authoritative `BLUE / B-04` label to all players;
 - an on-screen event log showing perception claims separately from authoritative facts;

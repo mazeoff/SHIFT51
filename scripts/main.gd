@@ -396,7 +396,9 @@ func _apply_perception() -> void:
 		instruction_label.text = Localization.text("order_b")
 		evidence_label.text = Localization.text("perception_b")
 		door_mesh.visible = false
-		perception_overlay = _box("LocalWall", Vector3(2, 2.5, .34), DOOR_POS, Color("596164"), false)
+		# This wall is locally physical: it blocks both movement and the interaction
+		# ray, so a player who cannot perceive the door cannot operate or cross it.
+		perception_overlay = _box("LocalWall", Vector3(2, 2.5, .34), DOOR_POS, Color("596164"), true)
 		false_observer_visual = _observer_mesh("FalseObserver", Vector3(-2.1, 0.8, 4.0), Color("b7a7ce"))
 
 func _update_observer(delta: float) -> void:
